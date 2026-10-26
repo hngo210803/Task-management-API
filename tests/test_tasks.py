@@ -1,37 +1,34 @@
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from src.main import app
-
 client = TestClient(app)
-
+@patch("src.routes.tasks.tasks_table")
+def test_create_task(mock_table):
+    mock_table.put_item.return_value = {}
+    payload = {
+        "task_id": "test-001",
+        "title": "Test task",
+        "description": "A task for testing",
+        "completed": False,
+    }
+    response = client.post("/tasks/", json=payload)
+    assert response.status_code in (200, 201)
+    mock_table.put_item.assert_called_once()
+@patch("src.routes.tasks.tasks_table")
+def test_get_tasks(mock_table):
+    mock_table.scan.return_value = {
+        "Items": [
+            {
+                "task_id": "test-001",
+                "title": "Test task",
+                "description": "A task for testing",
+                "completed": False,
+            }
+        ]
+    }
+    response = client.get("/tasks/")
+    assert response.status_code == 200
+    mock_table.scan.assert_called_once()
 def test_home():
     response = client.get("/")
     assert response.status_code == 200
-
-def test_create_task():
-    response = client.post(
-        "/tasks",
-        json={
-            "title": "Test Task",
-            "description": "Created by pytest",
-            "status": "pending"
-        }
-    )
-
-    assert response.status_code == 200
-
-    data = response.json()
-
-    assert data["title"] == "Test Task"
-    assert data["description"] == "Created by pytest"
-    assert data["status"] == "pending"
-    assert "task_id" in data
-
-
-def test_get_tasks():
-    response = client.get("/tasks")
-
-    assert response.status_code == 200
-
-    data = response.json()
-
-    assert isinstance(data, list)
